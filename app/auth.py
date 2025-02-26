@@ -9,6 +9,7 @@ from datetime import datetime
 from config import Config
 from flask_dance.contrib.google import google
 from urllib.parse import urlparse
+from oauthlib.oauth2.rfc6749.errors import TokenExpiredError  # Import token expired error
 
 auth = Blueprint('auth', __name__)
 
@@ -107,7 +108,13 @@ def login():
 def google_login():
     if not google.authorized:
         return redirect(url_for("google.login"))
-    resp = google.get("/oauth2/v2/userinfo")
+    try:
+        resp = google.get("/oauth2/v2/userinfo")
+    except TokenExpiredError:
+        # Clear expired token and prompt re-login
+        del google.token
+        flash("Google session expired. Please log in again.", "warning")
+        return redirect(url_for("google.login"))
     if not resp.ok:
         flash("Failed to fetch user info from Google.", "danger")
         return redirect(url_for("auth.login"))
