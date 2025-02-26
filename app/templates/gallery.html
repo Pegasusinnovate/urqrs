@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-4 text-center">Gallery</h2>
+  {% if gallery and gallery.items and gallery.items|length > 0 %}
+    <div class="row">
+      {% for filename in gallery.items %}
+        {% set ext = filename.rsplit('.', 1)[1].lower() %}
+        {% set file_url = url_for('gallery.gallery_file', filename=filename) %}
+        <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+          <div class="card shadow-sm">
+            {% if ext == 'pdf' %}
+              <a href="{{ file_url }}" target="_blank">
+                <div class="ratio ratio-16x9">
+                  <iframe src="{{ file_url }}" style="border:0;" allowfullscreen></iframe>
+                </div>
+              </a>
+            {% else %}
+              <img src="{{ file_url }}" alt="Gallery Item" class="card-img-top gallery-item" style="cursor: pointer;" onclick="openLightbox('{{ file_url }}')">
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-center">No gallery items available.</p>
+  {% endif %}
+</div>
+
+<!-- Lightbox Modal for images -->
+<div class="modal fade" id="lightboxModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-body p-0">
+        <img id="lightboxImage" src="" class="img-fluid w-100" alt="Zoomed Image">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function openLightbox(src) {
+    document.getElementById('lightboxImage').src = src;
+    var modal = new bootstrap.Modal(document.getElementById('lightboxModal'));
+    modal.show();
+  }
+</script>
+{% endblock %}

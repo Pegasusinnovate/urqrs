@@ -1,0 +1,30 @@
+<nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
+    <div class="container">
+      <a class="navbar-brand" href="{{ url_for('choose_qr') }}">QR Facilities</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#galleryNavbar" aria-controls="galleryNavbar" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="galleryNavbar">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('manage_gallery') }}">Manage Gallery</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('gallery_view', user_id=current_user.id) }}">View Gallery</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('generate_gallery_qr') }}">Gallery QR</a>
+          </li>
+        </ul>
+        <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+           <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('choose_qr') }}">Choose QR</a>
+           </li>
+           <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+           </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+  

@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-4 text-center">Manage Your Gallery</h2>
+  <div class="row">
+    <!-- Left Column: Upload/Update Form and QR Code -->
+    <div class="col-md-6">
+      <div class="card p-4 mb-4">
+        <h4 class="card-title text-center">Upload / Update Gallery</h4>
+        <form method="POST" enctype="multipart/form-data">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="mb-3">
+            <label class="form-label">Select Gallery Files (PDF, JPG, PNG):</label>
+            <input type="file" name="gallery_files" class="form-control" multiple required>
+          </div>
+          <button type="submit" class="btn btn-primary w-100">Upload Gallery Files</button>
+        </form>
+      </div>
+      <div class="card p-4">
+        <h4 class="card-title text-center">Your Gallery QR Code</h4>
+        <div class="text-center">
+          {% if gallery and gallery.items and gallery.items|length > 0 %}
+            <img src="{{ url_for('gallery.generate_gallery_qr') }}" alt="Gallery QR" class="img-fluid" style="max-height:250px;">
+          {% else %}
+            <p class="text-muted">No gallery items available to generate QR code.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <!-- Right Column: Current Gallery Carousel -->
+    <div class="col-md-6">
+      <div class="card p-4">
+        <h4 class="card-title text-center">Current Gallery</h4>
+        {% if gallery and gallery.items %}
+          <div id="galleryCarousel" class="carousel slide" data-bs-ride="carousel">
+            <div class="carousel-inner">
+              {% for filename in gallery.items %}
+                {% set ext = filename.rsplit('.', 1)[1].lower() %}
+                {% set file_url = url_for('gallery.gallery_file', filename=filename) %}
+                <div class="carousel-item {% if loop.first %}active{% endif %}">
+                  {% if ext == 'pdf' %}
+                    <a href="javascript:void(0)" onclick="openPdfModal(this)" data-src="{{ file_url }}">
+                      <div class="ratio ratio-16x9" style="cursor: pointer;">
+                        <iframe src="{{ file_url }}" style="border:0;" allowfullscreen></iframe>
+                      </div>
+                    </a>
+                  {% else %}
+                    <img src="{{ file_url }}" alt="Gallery Item" class="d-block w-100" style="cursor: pointer;" onclick="openLightbox('{{ file_url }}')">
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+            <button class="carousel-control-prev" type="button" data-bs-target="#galleryCarousel" data-bs-slide="prev">
+              <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+              <span class="visually-hidden">Previous</span>
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#galleryCarousel" data-bs-slide="next">
+              <span class="carousel-control-next-icon" aria-hidden="true"></span>
+              <span class="visually-hidden">Next</span>
+            </button>
+          </div>
+        {% else %}
+          <p class="text-center">No gallery items uploaded yet.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="text-center mt-4">
+    <a href="{{ url_for('gallery.gallery_view', user_id=current_user.id) }}" class="btn btn-outline-secondary">Open Gallery in New Page</a>
+  </div>
+</div>
+
+<!-- Modal for PDF Viewer -->
+<div class="modal fade" id="pdfModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-content">
+      <div class="modal-body p-0">
+        <embed id="pdfEmbed" src="" type="application/pdf" width="100%" height="600px">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for Image Lightbox -->
+<div class="modal fade" id="lightboxModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-body p-0">
+        <img id="lightboxImage" src="" class="img-fluid w-100" alt="Zoomed Image">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function openLightbox(src) {
+    document.getElementById('lightboxImage').src = src;
+    var modal = new bootstrap.Modal(document.getElementById('lightboxModal'));
+    modal.show();
+  }
+  
+  function openPdfModal(elem) {
+    var src = elem.getAttribute('data-src');
+    document.getElementById('pdfEmbed').setAttribute('src', src);
+    var modal = new bootstrap.Modal(document.getElementById('pdfModal'));
+    modal.show();
+  }
+</script>
+{% endblock %}

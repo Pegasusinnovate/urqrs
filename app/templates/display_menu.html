@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-4 text-center">Our Menu</h2>
+  {% if extension == 'pdf' %}
+    <div class="ratio ratio-16x9">
+      <iframe src="{{ url_for('menu.display_menu', user_id=user_id) }}" style="border:0;" allowfullscreen></iframe>
+    </div>
+  {% else %}
+    <div class="text-center">
+      <img src="{{ url_for('menu.display_menu', user_id=user_id) }}" alt="Menu" class="img-fluid">
+    </div>
+  {% endif %}
+  <p class="text-center mt-3"><a href="{{ url_for('menu.dashboard') }}">Back to Dashboard</a></p>
+</div>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .choose-qr-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 80vh;
+    background: #f7f9fc;
+  }
+  .choose-qr-card {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    padding: 40px;
+    text-align: center;
+    width: 300px;
+    animation: fadeInUp 0.5s ease-out;
+  }
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .choose-qr-card h2 { font-size: 2rem; margin-bottom: 20px; color: #333; }
+  .choose-qr-btn {
+    display: block;
+    width: 100%;
+    padding: 15px;
+    margin: 10px 0;
+    font-size: 1.1rem;
+    font-weight: 500;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+  }
+  .choose-qr-btn.primary { background-color: #007bff; color: #fff; }
+  .choose-qr-btn.primary:hover { background-color: #0069d9; transform: scale(1.02); }
+  .choose-qr-btn.secondary { background-color: #6c757d; color: #fff; }
+  .choose-qr-btn.secondary:hover { background-color: #5a6268; transform: scale(1.02); }
+</style>
+<div class="choose-qr-container">
+  <div class="choose-qr-card">
+    <h2>Choose QR Facility</h2>
+    <button class="choose-qr-btn primary" onclick="location.href='{{ url_for('menu.dashboard') }}'">Regular Menu QR</button>
+    <button class="choose-qr-btn secondary" onclick="location.href='{{ url_for('gallery.manage_gallery') }}'">Gallery QR</button>
+  </div>
+</div>
+{% endblock %}

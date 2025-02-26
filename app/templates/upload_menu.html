@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card p-4">
+      <h2 class="card-title mb-4 text-center">Upload Your Menu</h2>
+      <form method="POST" enctype="multipart/form-data">
+        <div class="mb-3">
+          <label class="form-label">Select Menu File (PDF, JPG, PNG):</label>
+          <input type="file" name="menu_file" class="form-control" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">Upload Menu</button>
+      </form>
+      {% if preview_url %}
+      <div class="mt-4">
+        <h5 class="text-center">Current Menu Preview</h5>
+        <div class="d-grid">
+          <a href="{{ preview_url }}" class="btn btn-outline-secondary">View Current Menu</a>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block content %}
+<!-- Site Header -->
+<header class="py-4" style="background-color: #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+  <div class="container text-center">
+    <h1 class="display-4">urqrs</h1>
+    <p class="lead">Dynamic QR Codes, Menus & Galleries Made Easy</p>
+  </div>
+</header>
+
+<!-- Main Content -->
+<div class="container mt-4">
+  <div class="row">
+    <!-- Left Column: QR Code Input and Subscription Plans -->
+    <div class="col-md-6">
+      <!-- QR Code Generator Card -->
+      <div class="card mb-4 shadow-sm">
+        <div class="card-body">
+          <h3 class="card-title text-center">Generate Your QR Code</h3>
+          <form id="qrForm" method="POST" action="{{ url_for('front_page') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="mb-3">
+              <input type="url" name="link" class="form-control" placeholder="Enter your link here" value="{{ link }}" required>
+            </div>
+            <div class="text-center">
+              <button type="submit" id="submitBtn" class="btn btn-primary">Generate QR Code</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <!-- Subscription Plans Card -->
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h3 class="card-title text-center">Our Plans</h3>
+          <div class="row">
+            <div class="col-md-6 border-end">
+              <h5>Free Plan</h5>
+              <ul class="list-unstyled">
+                <li>7-day free trial</li>
+                <li>Basic QR code generation</li>
+                <li>Limited menu/gallery management</li>
+              </ul>
+            </div>
+            <div class="col-md-6">
+              <h5>Premium Plan</h5>
+              <ul class="list-unstyled">
+                <li>Unlimited usage</li>
+                <li>Advanced menu/gallery management</li>
+                <li>Custom branding options</li>
+              </ul>
+              <div class="text-center mt-2">
+                <a href="{{ url_for('subscription.subscription_status') }}" class="btn btn-success">Subscribe Now</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Right Column: Generated QR Code (if any) and "What We Do" -->
+    <div class="col-md-6">
+      {% if qr_code_url %}
+      <!-- Generated QR Code Card -->
+      <div class="card mb-4 shadow-sm">
+        <div class="card-body text-center">
+          <h3 class="card-title">Your QR Code</h3>
+          <img src="{{ qr_code_url }}" alt="QR Code" style="width:200px; height:200px;" class="img-fluid">
+        </div>
+      </div>
+      {% endif %}
+      <!-- What We Do Card -->
+      <div class="card shadow-sm">
+        <div class="card-body text-center">
+          <h3 class="card-title">What We Do</h3>
+          <p class="card-text">
+            urqrs empowers you to generate dynamic QR codes for any URL, manage restaurant menus, and create beautiful galleries with ease.
+            Whether you're a small business owner or a restaurant manager, our platform offers intuitive tools with both free and premium plans to suit your needs.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Footer -->
+<footer class="py-3 mt-4" style="background-color: #ffffff; box-shadow: 0 -2px 4px rgba(0,0,0,0.1);">
+  <div class="container text-center">
+    <small>&copy; {{ current_year }} urqrs&trade;. All rights reserved.</small>
+  </div>
+</footer>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.getElementById('qrForm').addEventListener('submit', function(){
+    document.getElementById('submitBtn').disabled = true;
+  });
+</script>
+{% endblock %}

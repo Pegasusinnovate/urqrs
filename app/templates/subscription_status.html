@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2 class="text-center">Subscription Status</h2>
+  <div class="card shadow-sm mt-3">
+    <div class="card-body">
+      <p><strong>Username:</strong> {{ user.username }}</p>
+      <p><strong>Current Plan:</strong> {{ user.subscription_tier|capitalize }}</p>
+      
+      {% if user.subscription_tier == 'free' %}
+        {% if user.trial_start_date %}
+          {% set trial_end = user.trial_start_date + timedelta(days=Config.SUBSCRIPTION_FREE_TRIAL_DAYS) %}
+          <p><strong>Trial Started:</strong> {{ user.trial_start_date.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+          <p><strong>Trial Ends:</strong> {{ trial_end.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+        {% else %}
+          <p>No trial data available.</p>
+        {% endif %}
+        <div class="text-center mt-3">
+          <form action="{{ url_for('subscription.subscribe') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-primary">Subscribe Now</button>
+          </form>
+        </div>
+      
+      {% elif user.subscription_tier == 'monthly' %}
+        <p><strong>Subscription Started:</strong> {{ user.subscription_start_date.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+        <p><strong>Status:</strong> {{ user.subscription_status }}</p>
+        {% if user.subscription_status == 'active' %}
+          <div class="text-center mt-3">
+            <a href="{{ url_for('subscription.cancel_subscription') }}" class="btn btn-warning">Cancel Subscription</a>
+          </div>
+        {% else %}
+          <p class="text-center text-muted">Your subscription is cancelled. You may use the service until the current period ends.</p>
+        {% endif %}
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

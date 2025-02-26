@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="mb-4 text-left">
+    <a href="{{ url_for('menu.dashboard') }}" class="btn btn-outline-secondary">Back to Dashboard</a>
+  </div>
+  <h2 class="mb-4 text-center">Your Created Menu</h2>
+  <div class="row">
+    <div class="col-md-12">
+      <div class="card p-4 mb-4">
+        <h3 class="card-title text-center">Menu Preview</h3>
+        <div class="ratio ratio-16x9">
+          <iframe src="{{ url_for('menu.display_simple_menu', user_id=user_id) }}" style="border:0;" allowfullscreen></iframe>
+        </div>
+      </div>
+      <div class="text-center">
+        <a href="{{ url_for('menu.download_menu', user_id=user_id) }}" class="btn btn-primary me-2">Download Menu</a>
+        <a href="{{ url_for('menu.set_default_menu') }}" class="btn btn-success me-2">Set as Default Menu</a>
+        <a href="{{ url_for('menu.create_menu') }}" class="btn btn-secondary">Edit Menu</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

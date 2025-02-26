@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container my-5">
+  <!-- Dashboard button moved to the top left -->
+  {% if current_user.is_authenticated %}
+    <div class="mb-3">
+      <a href="{{ url_for('menu.dashboard') }}" class="btn btn-outline-secondary">Back to Dashboard</a>
+    </div>
+  {% endif %}
+  <div class="row">
+    <!-- Left Column: Menu Form -->
+    <div class="col-md-6">
+      <div class="card p-4 mb-4">
+        <!-- Main heading remains centered with stylish font -->
+        <h2 class="card-title mb-4 text-center" style="font-family: 'Playfair Display', serif;">Create Simple Menu</h2>
+        <form id="menuForm" method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="mb-3 text-center">
+            <label class="form-label">Menu Title</label>
+            <input type="text" name="menu_title" id="menuTitle" class="form-control text-center" value="{{ pre_menu_title }}" required>
+          </div>
+          <!-- Segments Container -->
+          <div id="segmentsContainer">
+            {% if pre_dishes and pre_dishes|length > 0 %}
+              {% for segment in pre_dishes %}
+                {% set seg_index = loop.index0 %}
+                <div class="segment mb-4" data-index="{{ seg_index }}" style="border: 1px solid #ddd; padding: 15px; border-radius: 8px;">
+                  <div class="mb-3">
+                    <label class="form-label">Segment Heading</label>
+                    <!-- Segment headings left-aligned -->
+                    <input type="text" name="segment_heading[]" class="form-control segment-heading" placeholder="e.g., Breakfast" value="{{ segment.heading }}" required>
+                  </div>
+                  <table class="table table-bordered segment-dishes">
+                    <thead>
+                      <tr>
+                        <th class="text-center">Dish Name</th>
+                        <th class="text-center">Quantities (e.g., 2/50/100)</th>
+                        <th class="text-center">Prices (e.g., 50/60/70)</th>
+                        <th class="text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for dish in segment.dishes %}
+                        <tr>
+                          <td>
+                            <input type="text" name="dish_name_{{ seg_index }}[]" class="form-control dish-name text-center" placeholder="Dish Name" value="{{ dish.name }}" required>
+                          </td>
+                          <td>
+                            <input type="text" name="dish_quantity_{{ seg_index }}[]" class="form-control dish-quantity text-center" placeholder="Quantities" value="{{ dish.options | map(attribute='quantity') | join('/') }}">
+                          </td>
+                          <td>
+                            <input type="text" name="dish_price_{{ seg_index }}[]" class="form-control dish-price text-center" placeholder="Prices" value="{{ dish.options | map(attribute='price') | join('/') }}">
+                          </td>
+                          <td class="text-center">
+                            <button type="button" class="btn btn-danger remove-dish">Remove</button>
+                          </td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                  <div class="text-center">
+                    <button type="button" class="btn btn-secondary add-dish-to-segment">Add Dish</button>
+                    <button type="button" class="btn btn-danger remove-segment">Remove Segment</button>
+                  </div>
+                </div>
+              {% endfor %}
+            {% else %}
+              <!-- Default Segment if no pre-existing data -->
+              <div class="segment mb-4" data-index="0" style="border: 1px solid #ddd; padding: 15px; border-radius: 8px;">
+                <div class="mb-3">
+                  <label class="form-label">Segment Heading</label>
+                  <input type="text" name="segment_heading[]" class="form-control segment-heading" placeholder="e.g., Breakfast" required>
+                </div>
+                <table class="table table-bordered segment-dishes">
+                  <thead>
+                    <tr>
+                      <th class="text-center">Dish Name</th>
+                      <th class="text-center">Quantities (e.g., 2/50/100)</th>
+                      <th class="text-center">Prices (e.g., 50/60/70)</th>
+                      <th class="text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <input type="text" name="dish_name_0[]" class="form-control dish-name text-center" placeholder="Dish Name" required>
+                      </td>
+                      <td>
+                        <input type="text" name="dish_quantity_0[]" class="form-control dish-quantity text-center" placeholder="Quantities">
+                      </td>
+                      <td>
+                        <input type="text" name="dish_price_0[]" class="form-control dish-price text-center" placeholder="Prices">
+                      </td>
+                      <td class="text-center">
+                        <button type="button" class="btn btn-danger remove-dish">Remove</button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div class="text-center">
+                  <button type="button" class="btn btn-secondary add-dish-to-segment">Add Dish</button>
+                  <button type="button" class="btn btn-danger remove-segment">Remove Segment</button>
+                </div>
+              </div>
+            {% endif %}
+          </div>
+          <div class="text-center mb-3">
+            <button type="button" id="addSegment" class="btn btn-secondary">Add Segment</button>
+          </div>
+          <div class="text-center">
+            <button type="submit" class="btn btn-primary w-100">View Menu</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <!-- Right Column: Live Preview -->
+    <div class="col-md-6">
+      <div class="card p-4 mb-4">
+        <h2 class="card-title mb-4 text-center">Menu Preview</h2>
+        <div id="menuPreview">
+          <h1 class="text-center" id="previewTitle">{{ pre_menu_title if pre_menu_title else "Your Menu Title" }}</h1>
+          <div id="previewSegments"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function updatePreview() {
+    const title = document.getElementById('menuTitle').value;
+    document.getElementById('previewTitle').innerText = title || "Your Menu Title";
+    
+    const segmentsContainer = document.getElementById('segmentsContainer');
+    const previewSegmentsDiv = document.getElementById('previewSegments');
+    previewSegmentsDiv.innerHTML = '';
+    
+    const segments = segmentsContainer.querySelectorAll('.segment');
+    segments.forEach(function(segment) {
+      const segmentHeading = segment.querySelector('.segment-heading').value || "";
+      let segmentHTML = `<h3 style="border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-bottom: 10px; text-align: left;">${segmentHeading}</h3>`;
+      segmentHTML += `<table class="table table-bordered"><thead><tr><th class="text-center">Dish</th><th class="text-center">Quantities</th><th class="text-center">Prices</th></tr></thead><tbody>`;
+      
+      const dishRows = segment.querySelectorAll('table.segment-dishes tbody tr');
+      dishRows.forEach(function(row) {
+        const dishName = row.querySelector('.dish-name').value;
+        const dishQuantities = row.querySelector('.dish-quantity').value;
+        const dishPrices = row.querySelector('.dish-price').value;
+        if(dishName.trim() !== ""){
+          let quantitiesDisplay = "";
+          let pricesDisplay = "";
+          if(dishQuantities && dishPrices) {
+            const quantities = dishQuantities.split('/').map(q => q.trim()).filter(q => q !== '');
+            const prices = dishPrices.split('/').map(p => p.trim()).filter(p => p !== '');
+            if(quantities.length === prices.length && quantities.length > 0) {
+              quantitiesDisplay = quantities.join('/');
+              pricesDisplay = prices.join('/');
+            } else {
+              quantitiesDisplay = "Mismatch";
+              pricesDisplay = "Mismatch";
+            }
+          }
+          segmentHTML += `<tr><td class="text-center">${dishName}</td><td class="text-center">${quantitiesDisplay}</td><td class="text-center">${pricesDisplay}</td></tr>`;
+        }
+      });
+      segmentHTML += `</tbody></table>`;
+      previewSegmentsDiv.innerHTML += segmentHTML;
+    });
+  }
+  
+  document.getElementById('menuForm').addEventListener('input', updatePreview);
+  
+  document.getElementById('segmentsContainer').addEventListener('click', function(e) {
+    if(e.target && e.target.classList.contains('add-dish-to-segment')) {
+      const segment = e.target.closest('.segment');
+      const segIndex = segment.getAttribute('data-index');
+      const tbody = segment.querySelector('table.segment-dishes tbody');
+      const newRow = document.createElement('tr');
+      newRow.innerHTML = `
+        <td><input type="text" name="dish_name_${segIndex}[]" class="form-control dish-name text-center" placeholder="Dish Name" required></td>
+        <td><input type="text" name="dish_quantity_${segIndex}[]" class="form-control dish-quantity text-center" placeholder="Quantities (e.g., 2/50/100)"></td>
+        <td><input type="text" name="dish_price_${segIndex}[]" class="form-control dish-price text-center" placeholder="Prices (e.g., 50/60/70)"></td>
+        <td class="text-center"><button type="button" class="btn btn-danger remove-dish">Remove</button></td>
+      `;
+      tbody.appendChild(newRow);
+      updatePreview();
+    }
+    if(e.target && e.target.classList.contains('remove-dish')) {
+      const row = e.target.closest('tr');
+      row.parentNode.removeChild(row);
+      updatePreview();
+    }
+    if(e.target && e.target.classList.contains('remove-segment')) {
+      const segment = e.target.closest('.segment');
+      segment.parentNode.removeChild(segment);
+      updatePreview();
+    }
+  });
+  
+  document.getElementById('addSegment').addEventListener('click', function() {
+    const segmentsContainer = document.getElementById('segmentsContainer');
+    const newIndex = segmentsContainer.children.length;
+    const newSegment = document.createElement('div');
+    newSegment.classList.add('segment', 'mb-4');
+    newSegment.setAttribute('data-index', newIndex);
+    newSegment.style.border = "1px solid #ddd";
+    newSegment.style.padding = "15px";
+    newSegment.style.borderRadius = "8px";
+    newSegment.innerHTML = `
+      <div class="mb-3">
+        <label class="form-label">Segment Heading</label>
+        <input type="text" name="segment_heading[]" class="form-control segment-heading" placeholder="e.g., Breakfast" required>
+      </div>
+      <table class="table table-bordered segment-dishes">
+        <thead>
+          <tr>
+            <th class="text-center">Dish Name</th>
+            <th class="text-center">Quantities (e.g., 2/50/100)</th>
+            <th class="text-center">Prices (e.g., 50/60/70)</th>
+            <th class="text-center">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><input type="text" name="dish_name_${newIndex}[]" class="form-control dish-name text-center" placeholder="Dish Name" required></td>
+            <td><input type="text" name="dish_quantity_${newIndex}[]" class="form-control dish-quantity text-center" placeholder="Quantities"></td>
+            <td><input type="text" name="dish_price_${newIndex}[]" class="form-control dish-price text-center" placeholder="Prices"></td>
+            <td class="text-center"><button type="button" class="btn btn-danger remove-dish">Remove</button></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="text-center">
+        <button type="button" class="btn btn-secondary add-dish-to-segment">Add Dish</button>
+        <button type="button" class="btn btn-danger remove-segment">Remove Segment</button>
+      </div>
+    `;
+    segmentsContainer.appendChild(newSegment);
+    updatePreview();
+  });
+  
+  updatePreview();
+</script>
+{% endblock %}

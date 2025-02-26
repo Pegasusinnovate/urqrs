@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <!-- Dashboard Button at the Top Left -->
+  {% if current_user.is_authenticated %}
+    <div class="mb-4">
+      <a href="{{ url_for('menu.dashboard') }}" class="btn btn-outline-secondary">Back to Dashboard</a>
+    </div>
+  {% endif %}
+  <div class="row">
+    <!-- Left Column: Upload/Update Form and QR Code -->
+    <div class="col-md-6">
+      <div class="card p-4 mb-4">
+        <h4 class="card-title text-center">Upload / Update Menu</h4>
+        <form method="POST" enctype="multipart/form-data">
+          <!-- CSRF Token -->
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="mb-3">
+            <label class="form-label">Select Menu File(s) (PDF, JPG, PNG):</label>
+            <input type="file" name="menu_file" class="form-control" multiple required>
+          </div>
+          <button type="submit" class="btn btn-primary w-100">Upload Menu</button>
+        </form>
+      </div>
+      {% if preview_url %}
+      <div class="card p-4 mb-4">
+        <h4 class="card-title text-center">Menu QR Code</h4>
+        <div class="text-center">
+          <img src="{{ qr_code_url }}" alt="QR Code" class="img-fluid" style="max-height:250px;">
+        </div>
+      </div>
+      {% endif %}
+    </div>
+    <!-- Right Column: Menu Preview Only -->
+    <div class="col-md-6">
+      <div class="card p-4 mb-4">
+        <h4 class="card-title text-center">Current Menu Preview</h4>
+        {% if preview_url %}
+          {% if preview_type == "multiple" %}
+            <div id="menuCarousel" class="carousel slide" data-bs-ride="carousel">
+              <div class="carousel-inner">
+                {% for url in preview_url %}
+                  <div class="carousel-item {% if loop.first %}active{% endif %}">
+                    <img src="{{ url }}" class="d-block w-100" alt="Menu Image" style="cursor: pointer;" onclick="openImageModal('{{ url }}')">
+                  </div>
+                {% endfor %}
+              </div>
+              <button class="carousel-control-prev" type="button" data-bs-target="#menuCarousel" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Previous</span>
+              </button>
+              <button class="carousel-control-next" type="button" data-bs-target="#menuCarousel" data-bs-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Next</span>
+              </button>
+            </div>
+          {% else %}
+            {% if extension == "pdf" or extension == "html" %}
+              <div class="ratio ratio-16x9">
+                <iframe src="{{ preview_url }}" style="border:0;" allowfullscreen></iframe>
+              </div>
+            {% else %}
+              <div class="text-center">
+                <img src="{{ preview_url }}" alt="Current Menu" class="img-fluid" style="cursor: pointer;" onclick="openImageModal('{{ preview_url }}')">
+              </div>
+            {% endif %}
+          {% endif %}
+        {% else %}
+          <p class="text-muted text-center">No menu uploaded yet.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for Image Lightbox -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-body p-0">
+        <img id="modalImage" src="" class="img-fluid w-100" alt="Zoomed Menu Image">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function openImageModal(src) {
+    document.getElementById('modalImage').setAttribute('src', src);
+    var modal = new bootstrap.Modal(document.getElementById('imageModal'));
+    modal.show();
+  }
+</script>
+{% endblock %}

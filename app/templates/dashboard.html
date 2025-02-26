@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-md-12">
+      <h2 class="mb-3">Welcome, {{ username }}!</h2>
+      <p>Manage your restaurant menus:</p>
+      <div class="d-grid gap-2 d-md-flex justify-content-md-start mb-4">
+        <a class="btn btn-primary me-md-2" href="{{ url_for('menu.upload_menu') }}">Upload/Update Menu (File)</a>
+        <a class="btn btn-secondary me-md-2" href="{{ url_for('menu.create_menu') }}">Create Simple Menu</a>
+        <a class="btn btn-info" href="{{ url_for('menu.upload_menu') }}">Manage Menu</a>
+      </div>
+    </div>
+  </div>
+  <hr>
+  <div class="row mt-4">
+    <div class="col-md-6">
+      <div class="card p-4">
+        <h3 class="card-title text-center">Your Menu Preview</h3>
+        {% if preview_url %}
+          {% if preview_type == "multiple" %}
+            <div id="menuCarousel" class="carousel slide" data-bs-ride="carousel">
+              <div class="carousel-inner">
+                {% for url in preview_url %}
+                  <div class="carousel-item {% if loop.first %}active{% endif %}">
+                    <img src="{{ url }}" class="d-block w-100" alt="Menu Image" style="cursor: pointer;" onclick="openImageModal('{{ url }}')">
+                  </div>
+                {% endfor %}
+              </div>
+              <button class="carousel-control-prev" type="button" data-bs-target="#menuCarousel" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Previous</span>
+              </button>
+              <button class="carousel-control-next" type="button" data-bs-target="#menuCarousel" data-bs-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Next</span>
+              </button>
+            </div>
+          {% else %}
+            {% if extension == "pdf" or extension == "html" %}
+              <div class="ratio ratio-16x9">
+                <iframe src="{{ preview_url }}" style="border:0;" allowfullscreen></iframe>
+              </div>
+            {% else %}
+              <div class="text-center">
+                <img src="{{ preview_url }}" alt="Current Menu" class="img-fluid" style="cursor: pointer;" onclick="openImageModal('{{ preview_url }}')">
+              </div>
+            {% endif %}
+          {% endif %}
+        {% else %}
+          <p class="text-muted text-center">No menu uploaded yet. Please upload or create a menu.</p>
+        {% endif %}
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card p-4">
+        <h3 class="card-title text-center">Your Menu QR Code</h3>
+        {% if qr_code_url %}
+          <div class="text-center">
+            <img src="{{ qr_code_url }}" alt="QR Code" class="img-fluid" style="max-height:250px;">
+          </div>
+        {% else %}
+          <p class="text-center text-muted">No menu available to generate QR code.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for Image Lightbox -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-body p-0">
+        <img id="modalImage" src="" class="img-fluid w-100" alt="Zoomed Menu Image">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function openImageModal(src) {
+    document.getElementById('modalImage').setAttribute('src', src);
+    var modal = new bootstrap.Modal(document.getElementById('imageModal'));
+    modal.show();
+  }
+</script>
+{% endblock %}

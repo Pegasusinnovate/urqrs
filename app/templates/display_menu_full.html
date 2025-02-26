@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-4 text-center">Our Menu</h2>
+  {% if files|length > 1 %}
+    <div id="menuCarousel" class="carousel slide" data-bs-ride="carousel">
+      <div class="carousel-inner">
+        {% for file in files %}
+          {% set ext = file.rsplit('.', 1)[1].lower() %}
+          <div class="carousel-item {% if loop.first %}active{% endif %}">
+            {% if ext == 'pdf' %}
+              <div class="ratio ratio-16x9">
+                <iframe src="{{ url_for('menu.uploaded_file', filename=file) }}" style="border:0;" allowfullscreen></iframe>
+              </div>
+            {% else %}
+              <img src="{{ url_for('menu.uploaded_file', filename=file) }}" class="d-block w-100" alt="Menu Image">
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+      <button class="carousel-control-prev" type="button" data-bs-target="#menuCarousel" data-bs-slide="prev">
+        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Previous</span>
+      </button>
+      <button class="carousel-control-next" type="button" data-bs-target="#menuCarousel" data-bs-slide="next">
+        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Next</span>
+      </button>
+    </div>
+  {% else %}
+    <div class="text-center">
+      {% set ext = files[0].rsplit('.', 1)[1].lower() %}
+      {% if ext == 'pdf' %}
+        <div class="ratio ratio-16x9">
+          <iframe src="{{ url_for('menu.uploaded_file', filename=files[0]) }}" style="border:0;" allowfullscreen></iframe>
+        </div>
+      {% else %}
+        <img src="{{ url_for('menu.uploaded_file', filename=files[0]) }}" class="img-fluid" alt="Menu Image">
+      {% endif %}
+    </div>
+  {% endif %}
+  <p class="text-center mt-3">
+    <a href="{{ url_for('menu.dashboard') }}" class="btn btn-outline-secondary">Back to Dashboard</a>
+  </p>
+</div>
+{% endblock %}
