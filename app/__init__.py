@@ -66,37 +66,36 @@ def create_app():
     app.logger.setLevel(logging.INFO)
     app.logger.info('App startup')
 
-    # Register blueprints for different functionalities
+    # Register blueprints
     from app.auth import auth as auth_blueprint
     app.register_blueprint(auth_blueprint)
-    
+
     from app.menu import menu as menu_blueprint
     app.register_blueprint(menu_blueprint)
-    
+
     from app.gallery import gallery as gallery_blueprint
     app.register_blueprint(gallery_blueprint)
-    
+
     from app.subscription import subscription as subscription_blueprint
     app.register_blueprint(subscription_blueprint)
-    
-    # Register main blueprint for public routes (e.g., the front page)
+
+    # Register main blueprint for public routes
     from app.main import main as main_blueprint
     app.register_blueprint(main_blueprint)
 
     # Register Google OAuth blueprint using Flask-Dance with updated scopes.
     from flask_dance.contrib.google import make_google_blueprint
-
-google_bp = make_google_blueprint(
-    client_id=app.config['GOOGLE_OAUTH_CLIENT_ID'],
-    client_secret=app.config['GOOGLE_OAUTH_CLIENT_SECRET'],
-    scope=[
-        "openid",
-        "https://www.googleapis.com/auth/userinfo.email",
-        "https://www.googleapis.com/auth/userinfo.profile"
-    ],
-    redirect_url="/dashboard"  # Redirect to a valid endpoint after auth
-)
-app.register_blueprint(google_bp, url_prefix="/google_login")
+    google_bp = make_google_blueprint(
+        client_id=app.config['GOOGLE_OAUTH_CLIENT_ID'],
+        client_secret=app.config['GOOGLE_OAUTH_CLIENT_SECRET'],
+        scope=[
+            "openid",
+            "https://www.googleapis.com/auth/userinfo.email",
+            "https://www.googleapis.com/auth/userinfo.profile"
+        ],
+        redirect_url="/dashboard"
+    )
+    app.register_blueprint(google_bp, url_prefix="/google_login")
 
     from datetime import datetime, timedelta
     @app.context_processor
