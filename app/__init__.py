@@ -86,16 +86,16 @@ def create_app():
     # Register Google OAuth blueprint using Flask-Dance with updated scopes.
     from flask_dance.contrib.google import make_google_blueprint
     google_bp = make_google_blueprint(
-        client_id=app.config['GOOGLE_OAUTH_CLIENT_ID'],
-        client_secret=app.config['GOOGLE_OAUTH_CLIENT_SECRET'],
-        scope=[
-            "openid",
-            "https://www.googleapis.com/auth/userinfo.email",
-            "https://www.googleapis.com/auth/userinfo.profile"
-        ],
-        redirect_url="/google_login"
-    )
-    app.register_blueprint(google_bp, url_prefix="/google_login")
+    client_id=app.config['GOOGLE_OAUTH_CLIENT_ID'],
+    client_secret=app.config['GOOGLE_OAUTH_CLIENT_SECRET'],
+    scope=[
+        "openid",
+        "https://www.googleapis.com/auth/userinfo.email",
+        "https://www.googleapis.com/auth/userinfo.profile"
+    ],
+    redirect_url="/google_login/authorized"
+)
+app.register_blueprint(google_bp, url_prefix="/google_login")
 
     from datetime import datetime, timedelta
     @app.context_processor
