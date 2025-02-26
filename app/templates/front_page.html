@@ -17,7 +17,7 @@
       <div class="card mb-4 shadow-sm">
         <div class="card-body">
           <h3 class="card-title text-center">Generate Your QR Code</h3>
-          <form id="qrForm" method="POST" action="{{ url_for('front_page') }}">
+          <form id="qrForm" method="POST" action="{{ url_for('main.front_page') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="mb-3">
               <input type="url" name="link" class="form-control" placeholder="Enter your link here" value="{{ link }}" required>
