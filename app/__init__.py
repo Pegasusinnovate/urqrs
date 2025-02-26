@@ -1,7 +1,7 @@
 import os
-from flask import Flask
 import logging
 from logging.handlers import RotatingFileHandler
+from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_wtf import CSRFProtect
@@ -66,7 +66,7 @@ def create_app():
     app.logger.setLevel(logging.INFO)
     app.logger.info('App startup')
 
-    # Register blueprints
+    # Register blueprints for different functionalities
     from app.auth import auth as auth_blueprint
     app.register_blueprint(auth_blueprint)
     
@@ -78,6 +78,10 @@ def create_app():
     
     from app.subscription import subscription as subscription_blueprint
     app.register_blueprint(subscription_blueprint)
+    
+    # Register main blueprint for public routes (e.g., the front page)
+    from app.main import main as main_blueprint
+    app.register_blueprint(main_blueprint)
 
     # Register Google OAuth blueprint using Flask-Dance with updated scopes.
     from flask_dance.contrib.google import make_google_blueprint
