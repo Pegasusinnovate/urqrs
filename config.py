@@ -3,7 +3,7 @@ import secrets
 
 class Config:
     # Critical: use a secure secret key (override with an env variable in production)
-    SECRET_KEY = os.environ.get('SECRET_KEY', secrets.token_hex(32))
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'your-default-secret-key')
     
     # SQLAlchemy settings
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'sqlite:///db.sqlite')
@@ -40,6 +40,7 @@ class Config:
     SCHEDULER_API_ENABLED = True
 
     # Google OAuth Configuration (set production keys via environment variables)
-    GOOGLE_OAUTH_CLIENT_ID = os.environ.get('GOOGLE_OAUTH_CLIENT_ID','813242085049-9vui6pehpkps8ubrefnac95hc55pnhb2.apps.googleusercontent.com')
-    GOOGLE_OAUTH_CLIENT_SECRET = os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET','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')
+    GOOGLE_OAUTH_CLIENT_ID = os.environ.get('GOOGLE_OAUTH_CLIENT_ID', '') 
+    GOOGLE_OAUTH_CLIENT_SECRET = os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET', '')
+
                                                 
