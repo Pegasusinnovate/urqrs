@@ -57,7 +57,6 @@ def signup():
             'otp': otp
         }
         # For development/testing, flash the OTP.
-        # In production, send the OTP via email/SMS and remove the flash.
         flash(f"Your OTP is: {otp} (In production, this will be sent securely)", "info")
         return redirect(url_for('auth.verify_otp'))
     return render_template('signup.html', title="Sign Up")
@@ -106,15 +105,16 @@ def login():
 
 @auth.route('/login/google')
 def google_login():
+    # If not already authorized, redirect to Google login and pass along any "next" parameter.
     if not google.authorized:
-        return redirect(url_for("google.login"))
+        return redirect(url_for("google.login", next=request.args.get("next")))
     try:
         resp = google.get("/oauth2/v2/userinfo")
     except TokenExpiredError:
-        # Clear expired token and prompt re-login
+        # If token expired, delete it and prompt a fresh login.
         del google.token
         flash("Google session expired. Please log in again.", "warning")
-        return redirect(url_for("google.login"))
+        return redirect(url_for("google.login", next=request.args.get("next")))
     if not resp.ok:
         flash("Failed to fetch user info from Google.", "danger")
         return redirect(url_for("auth.login"))
@@ -136,7 +136,10 @@ def google_login():
         db.session.commit()
     login_user(user)
     flash("Logged in with Google.", "success")
-    return redirect(url_for('menu.choose_qr'))
+    next_page = request.args.get("next")
+    if not next_page or urlparse(next_page).netloc != "":
+        next_page = url_for('menu.choose_qr')
+    return redirect(next_page)
 
 @auth.route('/logout')
 @login_required
