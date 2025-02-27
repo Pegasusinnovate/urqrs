@@ -24,7 +24,7 @@ def choose_qr():
 def dashboard():
     preview_urls = None
     preview_type = None
-    # Use file-based menu if available; otherwise, check session for uploaded menu URLs.
+    # If the user has chosen "file" mode and there are uploaded files in session, use them.
     if current_user.default_menu == "file" and session.get('uploaded_menu_urls'):
         urls = session.get('uploaded_menu_urls')
         if len(urls) == 1:
@@ -33,7 +33,8 @@ def dashboard():
         else:
             preview_type = "multiple"
             preview_urls = urls
-    else:
+    # Otherwise, if the user has a sample (simple) menu active.
+    elif current_user.default_menu == "simple":
         menu_file_path = os.path.join(current_app.config['MENU_FOLDER'], f"simple_menu_{current_user.id}.html")
         if os.path.exists(menu_file_path):
             preview_type = "single"
@@ -60,6 +61,12 @@ def uploaded_file(filename):
 @login_required
 @subscription_required
 def upload_menu():
+    # If a sample menu is active, inform the user and bypass file upload.
+    if current_user.default_menu == "simple":
+        flash("You are currently using a sample menu. To update your menu, please use the 'Create Menu' option.", "info")
+        preview_url = url_for('menu.display_simple_menu', user_id=current_user.id)
+        return render_template('manage_menu.html', title="Manage Menu", preview_url=preview_url, preview_type="single", qr_code_url=url_for('menu.generate_qr'), default_menu=current_user.default_menu, nav_flow="menu")
+    
     if request.method == 'POST':
         uploaded_files = request.files.getlist('menu_file')
         if not uploaded_files or uploaded_files[0].filename == '':
@@ -116,7 +123,6 @@ def display_menu(user_id):
     menu_file_path = os.path.join(current_app.config['MENU_FOLDER'], f"simple_menu_{user_id}.html")
     if os.path.exists(menu_file_path):
         return send_file(menu_file_path, mimetype='text/html')
-    # Fallback: if uploaded menu URLs exist in session, redirect to the first one.
     if session.get('uploaded_menu_urls'):
         return redirect(session.get('uploaded_menu_urls')[0])
     return "No menu available.", 404
@@ -143,8 +149,9 @@ def generate_qr():
     if not display_menu_url:
         flash("No menu available to generate QR code.", "warning")
         return redirect(url_for('menu.dashboard'))
-    img_io = generate_qr_code(display_menu_url)
-    return send_file(img_io, mimetype='image/png')
+    # Generate QR code image file and return it.
+    qr_io = generate_qr_code(display_menu_url, as_base64=False)
+    return send_file(qr_io, mimetype='image/png')
 
 @menu.route('/create_menu', methods=['GET', 'POST'])
 @login_required
@@ -235,6 +242,8 @@ def create_menu():
         else:
             new_menu = SimpleMenu(user_id=current_user.id, menu_title=menu_title, dishes=segments)
             db.session.add(new_menu)
+        # Set default menu to "simple" when a sample menu is created.
+        current_user.default_menu = "simple"
         db.session.commit()
         flash('Simple menu created successfully!', 'success')
         return redirect(url_for('menu.menu_created'))
@@ -291,5 +300,5 @@ def display_simple_menu(user_id):
 @login_required
 def generate_simple_menu_qr():
     display_menu_url = url_for('menu.display_simple_menu', user_id=current_user.id, _external=True)
-    img_io = generate_qr_code(display_menu_url)
-    return send_file(img_io, mimetype='image/png')
+    qr_io = generate_qr_code(display_menu_url, as_base64=False)
+    return send_file(qr_io, mimetype='image/png')
