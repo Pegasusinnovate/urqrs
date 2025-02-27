@@ -26,10 +26,11 @@
         "name": "urqrs Subscription",
         "description": "Monthly Subscription",
         "order_id": "{{ order.id }}",
-        "handler": function (response){
+        "handler": function (response) {
             document.getElementById('razorpay_payment_id').value = response.razorpay_payment_id;
             document.getElementById('razorpay_signature').value = response.razorpay_signature;
-            document.razorpay-form.submit();
+            // Use document.forms to correctly reference the form with a hyphen in its name.
+            document.forms['razorpay-form'].submit();
         },
         "prefill": {
             "name": "{{ user.username }}",
@@ -40,7 +41,7 @@
         }
     };
     var rzp1 = new Razorpay(options);
-    document.getElementById('rzp-button1').onclick = function(e){
+    document.getElementById('rzp-button1').onclick = function(e) {
         rzp1.open();
         e.preventDefault();
     }
