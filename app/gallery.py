@@ -1,7 +1,7 @@
 import os
 from flask import (
     Blueprint, render_template, redirect, url_for, request, flash,
-    current_app, jsonify, Response
+    current_app, jsonify, Response, send_file
 )
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
@@ -60,9 +60,9 @@ def generate_gallery_qr():
         return redirect(url_for('gallery.manage_gallery'))
     # Create an external URL to view the gallery
     display_gallery_url = url_for('gallery.gallery_view', user_id=current_user.id, _external=True)
-    # Generate QR code as a base64-encoded data URI
-    qr_data_uri = generate_qr_code(display_gallery_url, as_base64=True)
-    return Response(qr_data_uri, mimetype='image/png')
+    # Generate QR code as an image file (not base64) so that send_file works correctly.
+    qr_io = generate_qr_code(display_gallery_url, as_base64=False)
+    return send_file(qr_io, mimetype='image/png')
 
 @gallery.route('/debug/list_gallery_files')
 def list_gallery_files():
