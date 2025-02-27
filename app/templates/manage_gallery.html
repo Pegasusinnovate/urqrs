@@ -34,9 +34,8 @@
         {% if gallery and gallery.items %}
           <div id="galleryCarousel" class="carousel slide" data-bs-ride="carousel">
             <div class="carousel-inner">
-              {% for filename in gallery.items %}
-                {% set ext = filename.rsplit('.', 1)[1].lower() %}
-                {% set file_url = url_for('gallery.gallery_file', filename=filename) %}
+              {% for file_url in gallery.items %}
+                {% set ext = file_url.rsplit('.', 1)[1].lower() %}
                 <div class="carousel-item {% if loop.first %}active{% endif %}">
                   {% if ext == 'pdf' %}
                     <a href="javascript:void(0)" onclick="openPdfModal(this)" data-src="{{ file_url }}">
