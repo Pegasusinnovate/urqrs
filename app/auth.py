@@ -1,6 +1,9 @@
 import re
 import random
-from flask import Blueprint, render_template, redirect, url_for, request, flash, session, current_app
+from flask import (
+    Blueprint, render_template, redirect, url_for, request, flash,
+    session, current_app
+)
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import db, login_manager
 from app.models import User
@@ -9,7 +12,7 @@ from datetime import datetime
 from config import Config
 from flask_dance.contrib.google import google
 from urllib.parse import urlparse
-from oauthlib.oauth2.rfc6749.errors import TokenExpiredError  # Import token expired error
+from oauthlib.oauth2.rfc6749.errors import TokenExpiredError
 
 auth = Blueprint('auth', __name__)
 
@@ -24,12 +27,11 @@ def is_strong_password(password):
     - At least one uppercase letter
     - At least one lowercase letter
     - At least one digit
-    - At least one special character (e.g., @$!%*?&#)
+    - At least one special character
     """
     pattern = r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,}$'
     return re.match(pattern, password)
 
-# Generate a 6-digit OTP as a string.
 def generate_otp():
     return str(random.randint(100000, 999999))
 
@@ -48,7 +50,6 @@ def signup():
         if not is_strong_password(password):
             flash('Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, a digit, and a special character.', 'danger')
             return redirect(url_for('auth.signup'))
-        # Generate OTP and store signup data in session.
         otp = generate_otp()
         session['signup_data'] = {
             'email': email,
@@ -56,7 +57,6 @@ def signup():
             'display_name': display_name,
             'otp': otp
         }
-        # For development/testing, flash the OTP.
         flash(f"Your OTP is: {otp} (In production, this will be sent securely)", "info")
         return redirect(url_for('auth.verify_otp'))
     return render_template('signup.html', title="Sign Up")
@@ -105,13 +105,11 @@ def login():
 
 @auth.route('/login/google')
 def google_login():
-    # If not already authorized, redirect to Google login and pass along any "next" parameter.
     if not google.authorized:
         return redirect(url_for("google.login", next=request.args.get("next")))
     try:
         resp = google.get("/oauth2/v2/userinfo")
     except TokenExpiredError:
-        # If token expired, delete it and prompt a fresh login.
         del google.token
         flash("Google session expired. Please log in again.", "warning")
         return redirect(url_for("google.login", next=request.args.get("next")))
@@ -138,7 +136,7 @@ def google_login():
     flash("Logged in with Google.", "success")
     next_page = request.args.get("next")
     if not next_page or urlparse(next_page).netloc != "":
-        next_page = url_for('menu.choose_qr')
+        next_page = url_for('menu.dashboard')
     return redirect(next_page)
 
 @auth.route('/logout')
