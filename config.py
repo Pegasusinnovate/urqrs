@@ -1,5 +1,5 @@
 import os
-import secrets
+import os.path
 
 class Config:
     # Critical: use a secure secret key (override with an env variable in production)
@@ -9,7 +9,7 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    # Base directory and file storage paths
+    # Base directory and file storage paths (used for local fallback, if needed)
     BASE_DIR = os.getcwd()
     UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
     MENU_FOLDER = os.path.join(BASE_DIR, 'menus')
@@ -43,4 +43,5 @@ class Config:
     GOOGLE_OAUTH_CLIENT_ID = os.environ.get('GOOGLE_OAUTH_CLIENT_ID', '') 
     GOOGLE_OAUTH_CLIENT_SECRET = os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET', '')
 
-                                                
+    # Firebase Storage Bucket (set via environment variable)
+    FIREBASE_BUCKET = os.environ.get('FIREBASE_BUCKET', 'your-project-id.appspot.com')
