@@ -56,21 +56,13 @@ def generate_gallery_qr():
     if not gallery_obj or not gallery_obj.items or len(gallery_obj.items) == 0:
         flash("No gallery items available to generate QR code.", "warning")
         return redirect(url_for('gallery.manage_gallery'))
+    # Create an external URL to view the gallery
     display_gallery_url = url_for('gallery.gallery_view', user_id=current_user.id, _external=True)
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=10,
-        border=4,
-    )
-    qr.add_data(display_gallery_url)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white")
-    img_io = io.BytesIO()
-    img.save(img_io, 'PNG')
-    img_io.seek(0)
-    return send_file(img_io, mimetype='image/png')
-  
+    # Generate QR code as a base64-encoded data URI
+    qr_data_uri = generate_qr_code(display_gallery_url, as_base64=True)
+    # Return as plain text so that the <img> tag in the template gets the full data URI string.
+    return Response(qr_data_uri, mimetype='text/html')
+
 @gallery.route('/debug/list_gallery_files')
 def list_gallery_files():
     gallery_obj = Gallery.query.first()
