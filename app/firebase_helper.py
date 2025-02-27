@@ -1,11 +1,23 @@
 import os
+import json
+import tempfile
 import firebase_admin
 from firebase_admin import credentials, storage
 from werkzeug.utils import secure_filename
 
-# Use environment variable to get the path to the Firebase service account JSON file.
-# If not set, default to 'serviceAccountKey.json' in the project root.
-cred_path = os.environ.get('FIREBASE_CREDENTIALS_PATH', os.path.join(os.getcwd(), 'serviceAccountKey.json'))
+def get_firebase_cred_path():
+    # Try to get the JSON content from environment variable
+    firebase_json = os.environ.get('FIREBASE_CREDENTIALS')
+    if firebase_json:
+        # Write the JSON content to a temporary file
+        with tempfile.NamedTemporaryFile(delete=False, mode='w', suffix='.json') as temp_file:
+            temp_file.write(firebase_json)
+            return temp_file.name
+    else:
+        # Fallback: look for a file named 'serviceAccountKey.json' in the project root
+        return os.path.join(os.getcwd(), 'serviceAccountKey.json')
+
+cred_path = get_firebase_cred_path()
 
 # Initialize Firebase Admin SDK if not already initialized.
 if not firebase_admin._apps:
