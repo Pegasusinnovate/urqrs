@@ -1,12 +1,13 @@
 import os, uuid, base64
 from flask import (Blueprint, render_template, redirect, url_for, request, flash, 
-                   send_file, send_from_directory, current_app)
+                   current_app, session, send_file)
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from app import db, cache
 from app.models import SimpleMenu
 from app.decorators import subscription_required
 from app.utils import generate_qr_code
+from app.firebase_helper import upload_file_to_firebase
 
 menu = Blueprint('menu', __name__)
 
@@ -19,51 +20,46 @@ def choose_qr():
 @login_required
 @subscription_required
 def dashboard():
-    preview_url = None
-    extension = None
+    preview_urls = None
     preview_type = None
-    if current_user.default_menu == "file":
-        user_prefix = f"current_menu_{current_user.id}"
-        files = [fname for fname in os.listdir(current_app.config['UPLOAD_FOLDER']) 
-                 if fname.startswith(user_prefix)]
-        if files:
-            if len(files) == 1:
-                preview_type = "single"
-                preview_url = url_for('menu.uploaded_file', filename=files[0])
-                extension = files[0].rsplit('.', 1)[1].lower()
-            else:
-                preview_type = "multiple"
-                preview_url = [url_for('menu.uploaded_file', filename=fname) for fname in files]
-                extension = "image"
+    # For this example, we assume that the uploaded menu URLs are stored in session.
+    # In a full solution, you’d store these persistently in your database.
+    if current_user.default_menu == "file" and session.get('uploaded_menu_urls'):
+        urls = session.get('uploaded_menu_urls')
+        if len(urls) == 1:
+            preview_type = "single"
+            preview_urls = urls[0]
+        else:
+            preview_type = "multiple"
+            preview_urls = urls
     else:
+        # Fallback: if no uploads, try to display a simple menu from the MENU_FOLDER (if exists)
         menu_file_path = os.path.join(current_app.config['MENU_FOLDER'], f"simple_menu_{current_user.id}.html")
         if os.path.exists(menu_file_path):
             preview_type = "single"
-            preview_url = url_for('menu.display_simple_menu', user_id=current_user.id)
-            extension = "html"
-    qr_code_url = url_for('menu.generate_qr') if preview_url else None
+            preview_urls = url_for('menu.display_simple_menu', user_id=current_user.id)
+    qr_code_url = url_for('menu.generate_qr') if preview_urls else None
     return render_template('dashboard.html', title="Dashboard", username=current_user.username,
-                           preview_url=preview_url, extension=extension,
-                           qr_code_url=qr_code_url, preview_type=preview_type, nav_flow="menu")
+                           preview_url=preview_urls, preview_type=preview_type,
+                           qr_code_url=qr_code_url, nav_flow="menu")
 
 @menu.route('/uploads/<path:filename>')
 def uploaded_file(filename):
-    return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename)
+    # Not used when using Firebase; files are served via their public URLs.
+    return "Not available", 404
 
 @menu.route('/upload_menu', methods=['GET', 'POST'])
 @login_required
 @subscription_required
 def upload_menu():
-    user_prefix = f"current_menu_{current_user.id}"
-    allowed_extensions = current_app.config.get('ALLOWED_MENU_EXTENSIONS', {'pdf', 'jpg', 'jpeg', 'png'})
-    
     if request.method == 'POST':
         uploaded_files = request.files.getlist('menu_file')
         if not uploaded_files or uploaded_files[0].filename == '':
             flash('No file selected.', 'danger')
             return redirect(request.url)
         
-        # Validate each file's extension and mimetype
+        file_urls = []
+        allowed_extensions = current_app.config.get('ALLOWED_MENU_EXTENSIONS', {'pdf', 'jpg', 'jpeg', 'png'})
         for file in uploaded_files:
             if file and file.filename:
                 filename = secure_filename(file.filename)
@@ -74,106 +70,45 @@ def upload_menu():
                 if ext not in allowed_extensions or file.mimetype not in ['image/jpeg', 'image/png', 'application/pdf']:
                     flash(f'File type not allowed: {ext}.', "danger")
                     return redirect(request.url)
-        
-        # Remove existing files for this user from UPLOAD_FOLDER
-        for fname in os.listdir(current_app.config['UPLOAD_FOLDER']):
-            if fname.startswith(user_prefix):
-                try:
-                    os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], fname))
-                except Exception as e:
-                    current_app.logger.error(f"Error deleting file {fname}: {e}")
-        
-        # Save uploaded file(s)
-        if len(uploaded_files) > 1:
-            i = 1
-            for file in uploaded_files:
-                if file and file.filename:
-                    filename = secure_filename(file.filename)
-                    if '.' not in filename:
-                        flash("One of the files is missing an extension.", "danger")
-                        return redirect(request.url)
-                    ext = filename.rsplit('.', 1)[1].lower()
-                    if ext in {'jpg', 'jpeg', 'png', 'pdf'}:
-                        new_filename = f"{user_prefix}_{i}.{ext}"
-                        try:
-                            file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], new_filename))
-                        except Exception as e:
-                            flash(f"Error saving file {new_filename}. Please try again.", "danger")
-                            return redirect(request.url)
-                        i += 1
-            flash('Multiple menu images uploaded successfully!', 'success')
-            current_user.default_menu = "file"
-        else:
-            file = uploaded_files[0]
-            if file and file.filename:
-                filename = secure_filename(file.filename)
-                if '.' not in filename:
-                    flash("File name is missing an extension.", "danger")
+                file_url = upload_file_to_firebase(file, folder="menus")
+                if not file_url:
+                    flash("Error uploading file to Firebase.", "danger")
                     return redirect(request.url)
-                ext = filename.rsplit('.', 1)[1].lower()
-                new_filename = f"{user_prefix}.{ext}"
-                try:
-                    file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], new_filename))
-                except Exception as e:
-                    flash("Error saving file. Please try again.", "danger")
-                    return redirect(request.url)
-                flash('Menu updated successfully!', 'success')
-                current_user.default_menu = "file"
-            else:
-                flash('No file selected.', 'danger')
-                return redirect(request.url)
+                file_urls.append(file_url)
         
+        # Instead of saving locally, store the list of URLs in session for preview.
+        session['uploaded_menu_urls'] = file_urls
+        flash('Menu updated successfully!', 'success')
+        current_user.default_menu = "file"
         db.session.commit()
         return redirect(url_for('menu.upload_menu'))
     
-    # GET: retrieve files for preview
-    files = [fname for fname in os.listdir(current_app.config['UPLOAD_FOLDER']) 
-             if fname.startswith(user_prefix)]
-    if files:
-        if current_user.default_menu == "file":
-            if len(files) == 1:
-                preview_type = "single"
-                extension = files[0].rsplit('.', 1)[1].lower()
-                preview_url = url_for('menu.uploaded_file', filename=files[0])
-            else:
-                preview_type = "multiple"
-                preview_url = [url_for('menu.uploaded_file', filename=fname) for fname in files]
-                extension = "image"
-        else:
-            preview_url = url_for('menu.display_simple_menu', user_id=current_user.id)
-            extension = "html"
+    # GET: retrieve uploaded menu URLs from session.
+    uploaded_menu_urls = session.get('uploaded_menu_urls')
+    preview_type = None
+    preview_url = None
+    if uploaded_menu_urls:
+        if len(uploaded_menu_urls) == 1:
             preview_type = "single"
-    else:
-        preview_url = None
-        extension = None
-        preview_type = None
-
+            preview_url = uploaded_menu_urls[0]
+        else:
+            preview_type = "multiple"
+            preview_url = uploaded_menu_urls
     return render_template('manage_menu.html', title="Manage Menu",
                            preview_url=preview_url, preview_type=preview_type,
-                           qr_code_url=url_for('menu.generate_qr'), extension=extension,
+                           qr_code_url=url_for('menu.generate_qr'),
                            default_menu=current_user.default_menu, nav_flow="menu")
 
 @menu.route('/display_menu/<int:user_id>')
 def display_menu(user_id):
-    user_prefix = f"current_menu_{user_id}"
-    files = sorted([fname for fname in os.listdir(current_app.config['UPLOAD_FOLDER']) 
-                     if fname.startswith(user_prefix)])
-    if not files:
-        return "No menu uploaded yet", 404
-    file_to_display = files[0]
-    extension = file_to_display.rsplit('.', 1)[1].lower()
-    return render_template('display_menu.html', title="Our Menu",
-                           menu_file=file_to_display, extension=extension, user_id=user_id)
+    # For file-based menus, this route may no longer be applicable when using Firebase.
+    return "Not available", 404
 
 @menu.route('/display_menu_full/<int:user_id>')
 @cache.cached(timeout=300, key_prefix=lambda: f"display_menu_full_{request.view_args['user_id']}")
 def display_menu_full(user_id):
-    user_prefix = f"current_menu_{user_id}"
-    files = sorted([fname for fname in os.listdir(current_app.config['UPLOAD_FOLDER']) 
-                     if fname.startswith(user_prefix)])
-    if not files:
-        return "No menu uploaded yet", 404
-    return render_template('display_menu_full.html', title="Our Menu", files=files, user_id=user_id)
+    # Same note as above.
+    return "Not available", 404
 
 @menu.route('/generate_qr')
 @login_required
@@ -181,8 +116,17 @@ def generate_qr():
     if current_user.default_menu == "simple":
         display_menu_url = url_for('menu.display_simple_menu', user_id=current_user.id, _external=True)
     else:
-        display_menu_url = url_for('menu.display_menu_full', user_id=current_user.id, _external=True)
-    
+        # Use the uploaded menu URLs stored in session.
+        if session.get('uploaded_menu_urls'):
+            # For simplicity, take the first URL if only one is present,
+            # or use a concatenated version if multiple.
+            urls = session.get('uploaded_menu_urls')
+            display_menu_url = urls[0] if len(urls) == 1 else urls[0]
+        else:
+            display_menu_url = None
+    if not display_menu_url:
+        flash("No menu available to generate QR code.", "warning")
+        return redirect(url_for('menu.dashboard'))
     img_io = generate_qr_code(display_menu_url)
     return send_file(img_io, mimetype='image/png')
 
