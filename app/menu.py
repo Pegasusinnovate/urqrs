@@ -24,21 +24,25 @@ def choose_qr():
 def dashboard():
     preview_urls = None
     preview_type = None
-    # If the user has chosen "file" mode and there are uploaded files in session, use them.
+    preview_format = None  # "iframe" or "image"
+    # Use uploaded file mode if active.
     if current_user.default_menu == "file" and session.get('uploaded_menu_urls'):
         urls = session.get('uploaded_menu_urls')
         if len(urls) == 1:
             preview_type = "single"
             preview_urls = urls[0]
+            preview_format = "image"
         else:
             preview_type = "multiple"
             preview_urls = urls
-    # Otherwise, if the user has a sample (simple) menu active.
+            preview_format = "image"
+    # Otherwise, if a sample (simple) menu is active.
     elif current_user.default_menu == "simple":
         menu_file_path = os.path.join(current_app.config['MENU_FOLDER'], f"simple_menu_{current_user.id}.html")
         if os.path.exists(menu_file_path):
             preview_type = "single"
             preview_urls = url_for('menu.display_simple_menu', user_id=current_user.id)
+            preview_format = "iframe"  # Render HTML via iframe
     qr_code_url = url_for('menu.generate_qr') if preview_urls else None
     return render_template(
         'dashboard.html',
@@ -46,6 +50,7 @@ def dashboard():
         username=current_user.username,
         preview_url=preview_urls,
         preview_type=preview_type,
+        preview_format=preview_format,
         qr_code_url=qr_code_url,
         nav_flow="menu"
     )
