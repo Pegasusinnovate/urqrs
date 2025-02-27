@@ -1,6 +1,8 @@
 import os
-from flask import (Blueprint, render_template, redirect, url_for, request, flash,
-                   current_app, jsonify, Response)
+from flask import (
+    Blueprint, render_template, redirect, url_for, request, flash,
+    current_app, jsonify, Response
+)
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from app import db
@@ -11,10 +13,10 @@ from app.firebase_helper import upload_file_to_firebase
 
 gallery = Blueprint('gallery', __name__)
 
-ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg'}
-
 def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    # Use allowed extensions from config (with a fallback set)
+    allowed = current_app.config.get('ALLOWED_GALLERY_EXTENSIONS', {'pdf', 'jpg', 'jpeg', 'png'})
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed
 
 @gallery.route('/manage_gallery', methods=['GET', 'POST'])
 @login_required
@@ -60,7 +62,6 @@ def generate_gallery_qr():
     display_gallery_url = url_for('gallery.gallery_view', user_id=current_user.id, _external=True)
     # Generate QR code as a base64-encoded data URI
     qr_data_uri = generate_qr_code(display_gallery_url, as_base64=True)
-    # Return as plain text so that the <img> tag in the template gets the full data URI string.
     return Response(qr_data_uri, mimetype='image/png')
 
 @gallery.route('/debug/list_gallery_files')
