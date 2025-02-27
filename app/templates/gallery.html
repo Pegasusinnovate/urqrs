@@ -4,9 +4,8 @@
   <h2 class="mb-4 text-center">Gallery</h2>
   {% if gallery and gallery.items and gallery.items|length > 0 %}
     <div class="row">
-      {% for filename in gallery.items %}
-        {% set ext = filename.rsplit('.', 1)[1].lower() %}
-        {% set file_url = url_for('gallery.gallery_file', filename=filename) %}
+      {% for file_url in gallery.items %}
+        {% set ext = file_url.rsplit('.', 1)[1].lower() %}
         <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
           <div class="card shadow-sm">
             {% if ext == 'pdf' %}
