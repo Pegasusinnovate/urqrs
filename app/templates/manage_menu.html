@@ -13,6 +13,7 @@
       {% if default_menu == "simple" %}
         <div class="alert alert-info text-center">
           You are currently using a sample menu. To update your menu, please use the "Create Menu" option.
+          If you wish to switch to file upload mode, click <a href="{{ url_for('menu.switch_to_file') }}">here</a>.
         </div>
         <div class="card p-4 mb-4">
           <h4 class="card-title text-center">Sample Menu Preview</h4>
@@ -43,7 +44,7 @@
         {% endif %}
       {% endif %}
     </div>
-    <!-- Right Column: Menu Preview -->
+    <!-- Right Column: Menu Preview Only -->
     <div class="col-md-6">
       <div class="card p-4 mb-4">
         <h4 class="card-title text-center">Current Menu Preview</h4>
