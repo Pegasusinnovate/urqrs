@@ -1,12 +1,13 @@
 import os
 from flask import (Blueprint, render_template, redirect, url_for, request, flash,
-                   send_file, send_from_directory, current_app, jsonify)
+                   current_app, jsonify)
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from app import db
 from app.models import Gallery
 from app.decorators import subscription_required
 from app.utils import generate_qr_code
+from app.firebase_helper import upload_file_to_firebase
 
 gallery = Blueprint('gallery', __name__)
 
@@ -25,18 +26,12 @@ def manage_gallery():
         saved_files = []
         for file in uploaded_files:
             if file and allowed_file(file.filename) and file.mimetype in ['image/jpeg', 'image/png', 'application/pdf']:
-                orig_filename = secure_filename(file.filename)
-                name_part, ext = os.path.splitext(orig_filename)
-                ext = ext.lower()
-                filename = f"gallery_{current_user.id}_{name_part}{ext}"
-                file_path = os.path.join(current_app.config['GALLERY_FOLDER'], filename)
-                try:
-                    file.save(file_path)
-                    current_app.logger.info(f"Saved gallery file: {file_path}")
-                except Exception as e:
-                    flash(f"Error saving gallery file {filename}: {str(e)}", "danger")
+                # Upload the file to Firebase Cloud Storage in the 'gallery' folder.
+                file_url = upload_file_to_firebase(file, folder="gallery")
+                if not file_url:
+                    flash("Error uploading file to Firebase.", "danger")
                     return redirect(request.url)
-                saved_files.append(filename)
+                saved_files.append(file_url)
         if gallery_obj:
             gallery_obj.items = saved_files
         else:
@@ -65,12 +60,10 @@ def generate_gallery_qr():
     img_io = generate_qr_code(display_gallery_url)
     return send_file(img_io, mimetype='image/png')
 
-@gallery.route('/gallery_files/<path:filename>')
-def gallery_file(filename):
-    return send_from_directory(current_app.config['GALLERY_FOLDER'], filename)
-
 @gallery.route('/debug/list_gallery_files')
 def list_gallery_files():
-    folder = current_app.config['GALLERY_FOLDER']
-    files = os.listdir(folder)
-    return jsonify(files)
+    # For debugging, return the list of URLs stored in the database.
+    gallery_obj = Gallery.query.first()
+    if gallery_obj and gallery_obj.items:
+        return jsonify(gallery_obj.items)
+    return jsonify([])
