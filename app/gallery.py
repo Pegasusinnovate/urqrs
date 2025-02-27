@@ -1,6 +1,6 @@
 import os
 from flask import (Blueprint, render_template, redirect, url_for, request, flash,
-                   current_app, jsonify)
+                   current_app, jsonify, Response)
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from app import db
@@ -26,7 +26,7 @@ def manage_gallery():
         saved_files = []
         for file in uploaded_files:
             if file and allowed_file(file.filename) and file.mimetype in ['image/jpeg', 'image/png', 'application/pdf']:
-                # Upload the file to Firebase Cloud Storage in the 'gallery' folder.
+                # Upload file to Firebase and get its public URL.
                 file_url = upload_file_to_firebase(file, folder="gallery")
                 if not file_url:
                     flash("Error uploading file to Firebase.", "danger")
@@ -56,13 +56,14 @@ def generate_gallery_qr():
     if not gallery_obj or not gallery_obj.items or len(gallery_obj.items) == 0:
         flash("No gallery items available to generate QR code.", "warning")
         return redirect(url_for('gallery.manage_gallery'))
+    # Create an external URL to view the gallery
     display_gallery_url = url_for('gallery.gallery_view', user_id=current_user.id, _external=True)
-    img_io = generate_qr_code(display_gallery_url)
-    return send_file(img_io, mimetype='image/png')
+    # Generate QR code as a base64-encoded data URI
+    qr_data_uri = generate_qr_code(display_gallery_url, as_base64=True)
+    return Response(qr_data_uri, mimetype='text/plain')
 
 @gallery.route('/debug/list_gallery_files')
 def list_gallery_files():
-    # For debugging, return the list of URLs stored in the database.
     gallery_obj = Gallery.query.first()
     if gallery_obj and gallery_obj.items:
         return jsonify(gallery_obj.items)
