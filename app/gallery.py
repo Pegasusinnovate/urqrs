@@ -60,8 +60,10 @@ def generate_gallery_qr():
     display_gallery_url = url_for('gallery.gallery_view', user_id=current_user.id, _external=True)
     # Generate QR code as a base64-encoded data URI
     qr_data_uri = generate_qr_code(display_gallery_url, as_base64=True)
-    # Return as plain text so that the <img> tag in the template gets the full data URI string.
-    return Response(qr_data_uri, mimetype='text/html')
+    # Log the first 100 characters of the data URI for debugging
+    current_app.logger.info("QR Code Data URI (first 100 chars): %s", qr_data_uri[:100])
+    # Return the data URI with mimetype 'text/plain' so that the <img> tag can display it directly.
+    return Response(qr_data_uri, mimetype='text/plain')
 
 @gallery.route('/debug/list_gallery_files')
 def list_gallery_files():
