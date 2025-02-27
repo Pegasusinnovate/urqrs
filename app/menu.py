@@ -1,6 +1,8 @@
 import os, uuid, base64
-from flask import (Blueprint, render_template, redirect, url_for, request, flash, 
-                   current_app, session, send_file)
+from flask import (
+    Blueprint, render_template, redirect, url_for, request, flash,
+    current_app, session, send_file
+)
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from app import db, cache
@@ -22,8 +24,7 @@ def choose_qr():
 def dashboard():
     preview_urls = None
     preview_type = None
-    # For this example, we assume that the uploaded menu URLs are stored in session.
-    # In a full solution, you’d store these persistently in your database.
+    # Use file-based menu if available; otherwise, check session for uploaded menu URLs.
     if current_user.default_menu == "file" and session.get('uploaded_menu_urls'):
         urls = session.get('uploaded_menu_urls')
         if len(urls) == 1:
@@ -33,19 +34,26 @@ def dashboard():
             preview_type = "multiple"
             preview_urls = urls
     else:
-        # Fallback: if no uploads, try to display a simple menu from the MENU_FOLDER (if exists)
         menu_file_path = os.path.join(current_app.config['MENU_FOLDER'], f"simple_menu_{current_user.id}.html")
         if os.path.exists(menu_file_path):
             preview_type = "single"
             preview_urls = url_for('menu.display_simple_menu', user_id=current_user.id)
     qr_code_url = url_for('menu.generate_qr') if preview_urls else None
-    return render_template('dashboard.html', title="Dashboard", username=current_user.username,
-                           preview_url=preview_urls, preview_type=preview_type,
-                           qr_code_url=qr_code_url, nav_flow="menu")
+    return render_template(
+        'dashboard.html',
+        title="Dashboard",
+        username=current_user.username,
+        preview_url=preview_urls,
+        preview_type=preview_type,
+        qr_code_url=qr_code_url,
+        nav_flow="menu"
+    )
 
 @menu.route('/uploads/<path:filename>')
 def uploaded_file(filename):
-    # Not used when using Firebase; files are served via their public URLs.
+    file_path = os.path.join(current_app.config['MENU_FOLDER'], filename)
+    if os.path.exists(file_path):
+        return send_file(file_path)
     return "Not available", 404
 
 @menu.route('/upload_menu', methods=['GET', 'POST'])
@@ -76,7 +84,6 @@ def upload_menu():
                     return redirect(request.url)
                 file_urls.append(file_url)
         
-        # Instead of saving locally, store the list of URLs in session for preview.
         session['uploaded_menu_urls'] = file_urls
         flash('Menu updated successfully!', 'success')
         current_user.default_menu = "file"
@@ -94,20 +101,32 @@ def upload_menu():
         else:
             preview_type = "multiple"
             preview_url = uploaded_menu_urls
-    return render_template('manage_menu.html', title="Manage Menu",
-                           preview_url=preview_url, preview_type=preview_type,
-                           qr_code_url=url_for('menu.generate_qr'),
-                           default_menu=current_user.default_menu, nav_flow="menu")
+    return render_template(
+        'manage_menu.html',
+        title="Manage Menu",
+        preview_url=preview_url,
+        preview_type=preview_type,
+        qr_code_url=url_for('menu.generate_qr'),
+        default_menu=current_user.default_menu,
+        nav_flow="menu"
+    )
 
 @menu.route('/display_menu/<int:user_id>')
 def display_menu(user_id):
-    # For file-based menus, this route may no longer be applicable when using Firebase.
-    return "Not available", 404
+    menu_file_path = os.path.join(current_app.config['MENU_FOLDER'], f"simple_menu_{user_id}.html")
+    if os.path.exists(menu_file_path):
+        return send_file(menu_file_path, mimetype='text/html')
+    # Fallback: if uploaded menu URLs exist in session, redirect to the first one.
+    if session.get('uploaded_menu_urls'):
+        return redirect(session.get('uploaded_menu_urls')[0])
+    return "No menu available.", 404
 
 @menu.route('/display_menu_full/<int:user_id>')
 @cache.cached(timeout=300, key_prefix=lambda: f"display_menu_full_{request.view_args['user_id']}")
 def display_menu_full(user_id):
-    # Same note as above.
+    menu_file_path = os.path.join(current_app.config['MENU_FOLDER'], f"simple_menu_{user_id}.html")
+    if os.path.exists(menu_file_path):
+        return send_file(menu_file_path, mimetype='text/html')
     return "Not available", 404
 
 @menu.route('/generate_qr')
@@ -116,10 +135,7 @@ def generate_qr():
     if current_user.default_menu == "simple":
         display_menu_url = url_for('menu.display_simple_menu', user_id=current_user.id, _external=True)
     else:
-        # Use the uploaded menu URLs stored in session.
         if session.get('uploaded_menu_urls'):
-            # For simplicity, take the first URL if only one is present,
-            # or use a concatenated version if multiple.
             urls = session.get('uploaded_menu_urls')
             display_menu_url = urls[0] if len(urls) == 1 else urls[0]
         else:
@@ -161,7 +177,7 @@ def create_menu():
             if dishes:
                 segments.append({'heading': heading.strip(), 'dishes': dishes})
         if not menu_title or len(segments) == 0:
-            flash('Please provide a menu title and at least one segment with a dish.', 'danger')
+            flash('Please provide a menu title and at least one segment with a dish.', "danger")
             return redirect(url_for('menu.create_menu'))
         
         segments_html = ""
@@ -225,8 +241,13 @@ def create_menu():
     else:
         pre_menu_title = existing_menu.menu_title if existing_menu else ""
         pre_dishes = existing_menu.dishes if existing_menu else []
-        return render_template('create_menu.html', title="Create Simple Menu",
-                               pre_menu_title=pre_menu_title, pre_dishes=pre_dishes, nav_flow="menu")
+        return render_template(
+            'create_menu.html',
+            title="Create Simple Menu",
+            pre_menu_title=pre_menu_title,
+            pre_dishes=pre_dishes,
+            nav_flow="menu"
+        )
 
 @menu.route('/menu_created')
 @login_required
@@ -244,8 +265,12 @@ def download_menu(user_id):
     menu_file_path = os.path.join(current_app.config['MENU_FOLDER'], f"simple_menu_{user_id}.html")
     if not os.path.exists(menu_file_path):
         return "No menu created yet.", 404
-    return send_file(menu_file_path, as_attachment=True,
-                     download_name=f"simple_menu_{user_id}.html", mimetype='text/html')
+    return send_file(
+        menu_file_path,
+        as_attachment=True,
+        download_name=f"simple_menu_{user_id}.html",
+        mimetype='text/html'
+    )
 
 @menu.route('/set_default_menu')
 @login_required
