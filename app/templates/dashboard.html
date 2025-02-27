@@ -13,10 +13,6 @@
     </div>
   </div>
   <hr>
-  {% if preview_url %}
-    {# Compute the file extension from preview_url if possible #}
-    {% set extension = preview_url.rsplit('.', 1)[1].lower() if '.' in preview_url else '' %}
-  {% endif %}
   <div class="row mt-4">
     <div class="col-md-6">
       <div class="card p-4">
@@ -41,7 +37,7 @@
               </button>
             </div>
           {% else %}
-            {% if extension in ["pdf", "html"] %}
+            {% if preview_format == "iframe" %}
               <div class="ratio ratio-16x9">
                 <iframe src="{{ preview_url }}" style="border:0;" allowfullscreen></iframe>
               </div>
