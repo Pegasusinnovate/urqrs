@@ -20,6 +20,7 @@
         <h4 class="card-title text-center">Your Gallery QR Code</h4>
         <div class="text-center">
           {% if gallery and gallery.items and gallery.items|length > 0 %}
+            <!-- Directly use the QR code route which now returns the data URI -->
             <img src="{{ url_for('gallery.generate_gallery_qr') }}" alt="Gallery QR" class="img-fluid" style="max-height:250px;">
           {% else %}
             <p class="text-muted">No gallery items available to generate QR code.</p>
