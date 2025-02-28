@@ -1,7 +1,7 @@
 import os, uuid, base64
 from flask import (
     Blueprint, render_template, redirect, url_for, request, flash,
-    current_app, session, send_file
+    current_app, session, send_file, Response
 )
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
@@ -24,8 +24,7 @@ def choose_qr():
 def dashboard():
     preview_urls = None
     preview_type = None
-    preview_format = None  # "iframe" or "image"
-    # Use uploaded file mode if active.
+    preview_format = None  # "iframe" for sample menus, "image" for uploaded files
     if current_user.default_menu == "file" and session.get('uploaded_menu_urls'):
         urls = session.get('uploaded_menu_urls')
         if len(urls) == 1:
@@ -36,13 +35,14 @@ def dashboard():
             preview_type = "multiple"
             preview_urls = urls
             preview_format = "image"
-    # Otherwise, if a sample (simple) menu is active.
     elif current_user.default_menu == "simple":
-        menu_file_path = os.path.join(current_app.config['MENU_FOLDER'], f"simple_menu_{current_user.id}.html")
-        if os.path.exists(menu_file_path):
+        # For sample menu, generate the preview URL dynamically.
+        # We'll use our display_simple_menu route, which generates HTML on the fly.
+        simple_menu = SimpleMenu.query.filter_by(user_id=current_user.id).first()
+        if simple_menu:
             preview_type = "single"
             preview_urls = url_for('menu.display_simple_menu', user_id=current_user.id)
-            preview_format = "iframe"  # Render HTML via iframe
+            preview_format = "iframe"
     qr_code_url = url_for('menu.generate_qr') if preview_urls else None
     return render_template(
         'dashboard.html',
@@ -66,11 +66,20 @@ def uploaded_file(filename):
 @login_required
 @subscription_required
 def upload_menu():
-    # If a sample menu is active, inform the user and bypass file upload.
+    # If a sample menu is active, inform the user and provide a switch option.
     if current_user.default_menu == "simple":
-        flash("You are currently using a sample menu. To update your menu, please use the 'Create Menu' option.", "info")
+        flash("You are currently using a sample menu. To update your menu, please use the 'Create Menu' option or switch to file upload mode.", "info")
         preview_url = url_for('menu.display_simple_menu', user_id=current_user.id)
-        return render_template('manage_menu.html', title="Manage Menu", preview_url=preview_url, preview_type="single", qr_code_url=url_for('menu.generate_qr'), default_menu=current_user.default_menu, nav_flow="menu")
+        return render_template(
+            'manage_menu.html',
+            title="Manage Menu",
+            preview_url=preview_url,
+            preview_type="single",
+            default_menu=current_user.default_menu,
+            qr_code_url=url_for('menu.generate_qr'),
+            extension="html",
+            nav_flow="menu"
+        )
     
     if request.method == 'POST':
         uploaded_files = request.files.getlist('menu_file')
@@ -120,14 +129,13 @@ def upload_menu():
         preview_type=preview_type,
         qr_code_url=url_for('menu.generate_qr'),
         default_menu=current_user.default_menu,
+        extension="pdf",  # default; actual extension can be derived client-side if needed
         nav_flow="menu"
     )
 
 @menu.route('/display_menu/<int:user_id>')
 def display_menu(user_id):
-    menu_file_path = os.path.join(current_app.config['MENU_FOLDER'], f"simple_menu_{user_id}.html")
-    if os.path.exists(menu_file_path):
-        return send_file(menu_file_path, mimetype='text/html')
+    # For file-based menus, use the uploaded URL if available.
     if session.get('uploaded_menu_urls'):
         return redirect(session.get('uploaded_menu_urls')[0])
     return "No menu available.", 404
@@ -135,10 +143,52 @@ def display_menu(user_id):
 @menu.route('/display_menu_full/<int:user_id>')
 @cache.cached(timeout=300, key_prefix=lambda: f"display_menu_full_{request.view_args['user_id']}")
 def display_menu_full(user_id):
-    menu_file_path = os.path.join(current_app.config['MENU_FOLDER'], f"simple_menu_{user_id}.html")
-    if os.path.exists(menu_file_path):
-        return send_file(menu_file_path, mimetype='text/html')
+    # For full display, attempt to show the sample menu if available.
+    simple_menu = SimpleMenu.query.filter_by(user_id=user_id).first()
+    if simple_menu:
+        return redirect(url_for('menu.display_simple_menu', user_id=user_id))
     return "Not available", 404
+
+@menu.route('/display_simple_menu/<int:user_id>')
+def display_simple_menu(user_id):
+    from app.models import SimpleMenu
+    simple_menu = SimpleMenu.query.filter_by(user_id=user_id).first()
+    if not simple_menu:
+        return "No simple menu created yet.", 404
+    # Dynamically generate HTML content from the stored JSON data.
+    segments_html = ""
+    segments = simple_menu.dishes  # expecting this to be a list of segments
+    for segment in segments:
+        segment_html = f"<h2 style='border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 20px; text-align: left;'>{segment['heading']}</h2>"
+        segment_html += "<table class='table table-bordered'><thead><tr><th class='text-center'>Dish</th><th class='text-center'>Quantities</th><th class='text-center'>Prices</th></tr></thead><tbody>"
+        for dish in segment['dishes']:
+            quantities = "/".join(option['quantity'] for option in dish['options'])
+            prices = "/".join(option['price'] for option in dish['options'])
+            segment_html += f"<tr><td class='text-center'>{dish['name']}</td><td class='text-center'>{quantities}</td><td class='text-center'>{prices}</td></tr>"
+        segment_html += "</tbody></table>"
+        segments_html += segment_html
+    html_content = f"""
+    <!doctype html>
+    <html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>{simple_menu.menu_title}</title>
+        <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Roboto&display=swap" rel="stylesheet">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+        <style>
+          body {{ padding: 20px; font-family: 'Roboto', sans-serif; background-color: #f8f9fa; }}
+          h1, h2 {{ font-family: 'Playfair Display', serif; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1 class="text-center mb-4">{simple_menu.menu_title}</h1>
+            {segments_html}
+        </div>
+    </body>
+    </html>
+    """
+    return html_content
 
 @menu.route('/generate_qr')
 @login_required
@@ -154,7 +204,7 @@ def generate_qr():
     if not display_menu_url:
         flash("No menu available to generate QR code.", "warning")
         return redirect(url_for('menu.dashboard'))
-    # Generate QR code image file and return it.
+    # Generate QR code as a raw image file.
     qr_io = generate_qr_code(display_menu_url, as_base64=False)
     return send_file(qr_io, mimetype='image/png')
 
@@ -192,62 +242,14 @@ def create_menu():
             flash('Please provide a menu title and at least one segment with a dish.', "danger")
             return redirect(url_for('menu.create_menu'))
         
-        segments_html = ""
-        for segment in segments:
-            segment_html = f"""
-            <h2 style="border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 20px; text-align: left;">{segment['heading']}</h2>
-            <table class="table table-bordered">
-              <thead>
-                <tr>
-                  <th class="text-center">Dish</th>
-                  <th class="text-center">Quantities</th>
-                  <th class="text-center">Prices</th>
-                </tr>
-              </thead>
-              <tbody>
-            """
-            for dish in segment['dishes']:
-                quantities = "/".join(option['quantity'] for option in dish['options'])
-                prices = "/".join(option['price'] for option in dish['options'])
-                segment_html += f"<tr><td class='text-center'>{dish['name']}</td><td class='text-center'>{quantities}</td><td class='text-center'>{prices}</td></tr>"
-            segment_html += "</tbody></table>"
-            segments_html += segment_html
-        
-        html_content = f"""
-        <!doctype html>
-        <html lang="en">
-        <head>
-            <meta charset="utf-8">
-            <title>{menu_title}</title>
-            <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Roboto&display=swap" rel="stylesheet">
-            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-            <style>
-              body {{ padding: 20px; font-family: 'Roboto', sans-serif; background-color: #f8f9fa; }}
-              h1, h2 {{ font-family: 'Playfair Display', serif; }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1 class="text-center mb-4">{menu_title}</h1>
-                {segments_html}
-            </div>
-        </body>
-        </html>
-        """
-        menu_file_path = os.path.join(current_app.config['MENU_FOLDER'], f"simple_menu_{current_user.id}.html")
-        try:
-            with open(menu_file_path, "w", encoding="utf-8") as f:
-                f.write(html_content)
-        except Exception as e:
-            flash("Error creating menu file. Please try again.", "danger")
-            return redirect(url_for('menu.create_menu'))
+        # Update the SimpleMenu record in the database (no file write)
         if existing_menu:
             existing_menu.menu_title = menu_title
             existing_menu.dishes = segments
         else:
             new_menu = SimpleMenu(user_id=current_user.id, menu_title=menu_title, dishes=segments)
             db.session.add(new_menu)
-        # Set default menu to "simple" when a sample menu is created.
+        # Set default menu to "simple"
         current_user.default_menu = "simple"
         db.session.commit()
         flash('Simple menu created successfully!', 'success')
@@ -266,8 +268,9 @@ def create_menu():
 @menu.route('/menu_created')
 @login_required
 def menu_created():
-    menu_file_path = os.path.join(current_app.config['MENU_FOLDER'], f"simple_menu_{current_user.id}.html")
-    if not os.path.exists(menu_file_path):
+    from app.models import SimpleMenu
+    simple_menu = SimpleMenu.query.filter_by(user_id=current_user.id).first()
+    if not simple_menu:
         flash("No menu created yet.", "danger")
         return redirect(url_for('menu.create_menu'))
     return render_template('menu_created.html', user_id=current_user.id, nav_flow="menu")
@@ -276,15 +279,47 @@ def menu_created():
 @login_required
 @subscription_required
 def download_menu(user_id):
-    menu_file_path = os.path.join(current_app.config['MENU_FOLDER'], f"simple_menu_{user_id}.html")
-    if not os.path.exists(menu_file_path):
+    from app.models import SimpleMenu
+    simple_menu = SimpleMenu.query.filter_by(user_id=user_id).first()
+    if not simple_menu:
         return "No menu created yet.", 404
-    return send_file(
-        menu_file_path,
-        as_attachment=True,
-        download_name=f"simple_menu_{user_id}.html",
-        mimetype='text/html'
-    )
+    # Generate the HTML dynamically (as in display_simple_menu)
+    segments_html = ""
+    for segment in simple_menu.dishes:
+        segment_html = f"<h2 style='border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 20px; text-align: left;'>{segment['heading']}</h2>"
+        segment_html += "<table class='table table-bordered'><thead><tr><th class='text-center'>Dish</th><th class='text-center'>Quantities</th><th class='text-center'>Prices</th></tr></thead><tbody>"
+        for dish in segment['dishes']:
+            quantities = "/".join(option['quantity'] for option in dish['options'])
+            prices = "/".join(option['price'] for option in dish['options'])
+            segment_html += f"<tr><td class='text-center'>{dish['name']}</td><td class='text-center'>{quantities}</td><td class='text-center'>{prices}</td></tr>"
+        segment_html += "</tbody></table>"
+        segments_html += segment_html
+    html_content = f"""
+    <!doctype html>
+    <html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>{simple_menu.menu_title}</title>
+        <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Roboto&display=swap" rel="stylesheet">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+        <style>
+          body {{ padding: 20px; font-family: 'Roboto', sans-serif; background-color: #f8f9fa; }}
+          h1, h2 {{ font-family: 'Playfair Display', serif; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1 class="text-center mb-4">{simple_menu.menu_title}</h1>
+            {segments_html}
+        </div>
+    </body>
+    </html>
+    """
+    from io import BytesIO
+    return send_file(BytesIO(html_content.encode('utf-8')),
+                     as_attachment=True,
+                     download_name=f"simple_menu_{user_id}.html",
+                     mimetype='text/html')
 
 @menu.route('/set_default_menu')
 @login_required
@@ -294,24 +329,9 @@ def set_default_menu():
     flash("Menu set as default!", "success")
     return redirect(url_for('menu.menu_created'))
 
-@menu.route('/display_simple_menu/<int:user_id>')
-def display_simple_menu(user_id):
-    menu_file_path = os.path.join(current_app.config['MENU_FOLDER'], f"simple_menu_{user_id}.html")
-    if not os.path.exists(menu_file_path):
-        return "No simple menu created yet.", 404
-    return send_file(menu_file_path, mimetype='text/html')
-
 @menu.route('/generate_simple_menu_qr')
 @login_required
 def generate_simple_menu_qr():
     display_menu_url = url_for('menu.display_simple_menu', user_id=current_user.id, _external=True)
     qr_io = generate_qr_code(display_menu_url, as_base64=False)
     return send_file(qr_io, mimetype='image/png')
-
-@menu.route('/switch_to_file')
-@login_required
-def switch_to_file():
-    current_user.default_menu = "file"
-    db.session.commit()
-    flash("Switched to file upload mode.", "success")
-    return redirect(url_for('menu.upload_menu'))
