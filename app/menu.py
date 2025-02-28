@@ -335,3 +335,11 @@ def generate_simple_menu_qr():
     display_menu_url = url_for('menu.display_simple_menu', user_id=current_user.id, _external=True)
     qr_io = generate_qr_code(display_menu_url, as_base64=False)
     return send_file(qr_io, mimetype='image/png')
+
+@menu.route('/switch_to_file')
+@login_required
+def switch_to_file():
+    current_user.default_menu = "file"
+    db.session.commit()
+    flash("Switched to file upload mode.", "success")
+    return redirect(url_for('menu.upload_menu'))
